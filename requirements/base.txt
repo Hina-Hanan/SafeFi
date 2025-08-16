@@ -15,11 +15,12 @@ ta-lib>=0.4.25
 
 # Async Support
 aiohttp>=3.8.0
-asyncio>=3.4.3
 
-# Database
-sqlalchemy>=2.0.0
+# DATABASE - POSTGRESQL ONLY
+asyncpg>=0.28.0
+sqlalchemy[asyncio]>=2.0.0
 alembic>=1.12.0
+psycopg2-binary>=2.9.0
 
 # Testing
 pytest>=7.4.0
@@ -32,3 +33,7 @@ black>=23.7.0
 flake8>=6.0.0
 mypy>=1.5.0
 pre-commit>=3.3.0
+
+# Additional API clients
+httpx>=0.25.0
+tenacity>=8.2.0

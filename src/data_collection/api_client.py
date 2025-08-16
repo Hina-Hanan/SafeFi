@@ -2,7 +2,7 @@
 API client for SafeFi DeFi Risk Assessment Agent.
 
 This module provides a unified API client for interacting with various
-DeFi data sources and external APIs.
+DeFi data sources and external APIs without wallet connections.
 """
 
 import asyncio
@@ -103,7 +103,7 @@ class APIClient:
         Make API request with rate limiting and error handling.
         
         Args:
-            api_name: Name of the API (defi_llama, moralis, etc.)
+            api_name: Name of the API (coingecko, etherscan, etc.)
             endpoint: API endpoint path
             method: HTTP method
             params: Query parameters
@@ -129,17 +129,27 @@ class APIClient:
         
         url = f"{base_url}/{endpoint.lstrip('/')}"
         
-        # Add API key to headers if available
+        # Add API key to headers/params based on API type
         request_headers = headers or {}
-        api_key = getattr(self.settings, f"{api_name}_api_key", None)
-        if api_key:
-            if api_name == "moralis":
-                request_headers["X-API-Key"] = api_key
-            elif api_name == "etherscan":
-                params = params or {}
-                params["apikey"] = api_key
-            elif api_name == "coingecko":
-                request_headers["x-cg-demo-api-key"] = api_key
+        request_params = params or {}
+        
+        if api_name == "coingecko" and self.settings.coingecko_api_key:
+            request_headers["x-cg-demo-api-key"] = self.settings.coingecko_api_key
+        
+        elif api_name == "etherscan" and self.settings.etherscan_api_key:
+            request_params["apikey"] = self.settings.etherscan_api_key
+        
+        elif api_name == "alchemy" and self.settings.alchemy_api_key:
+            request_headers["Authorization"] = f"Bearer {self.settings.alchemy_api_key}"
+        
+        elif api_name == "moralis" and self.settings.moralis_api_key:
+            request_headers["X-API-Key"] = self.settings.moralis_api_key
+        
+        elif api_name == "quicknode" and self.settings.quicknode_api_key:
+            request_headers["Authorization"] = f"Bearer {self.settings.quicknode_api_key}"
+        
+        elif api_name == "huggingface" and self.settings.huggingface_api_key:
+            request_headers["Authorization"] = f"Bearer {self.settings.huggingface_api_key}"
         
         start_time = time.time()
         
@@ -148,7 +158,7 @@ class APIClient:
                 async with self.session.request(
                     method,
                     url,
-                    params=params,
+                    params=request_params,
                     headers=request_headers
                 ) as response:
                     response_time = time.time() - start_time
@@ -239,7 +249,7 @@ class APIClient:
             Token price data
         """
         try:
-            endpoint = f"simple/price"
+            endpoint = "simple/price"
             params = {
                 "ids": token_id,
                 "vs_currencies": "usd",
@@ -254,6 +264,73 @@ class APIClient:
             self.logger.error(f"Failed to get price for {token_id}: {str(e)}")
             return {}
     
+    async def get_ethereum_price(self) -> Dict[str, Any]:
+        """
+        Get Ethereum price from Etherscan.
+        
+        Returns:
+            Ethereum price data
+        """
+        try:
+            params = {
+                "module": "stats",
+                "action": "ethprice"
+            }
+            data = await self.make_request("etherscan", "", params=params)
+            self.logger.debug("Retrieved ETH price from Etherscan")
+            return data
+        
+        except Exception as e:
+            self.logger.error(f"Failed to get ETH price: {str(e)}")
+            return {}
+    
+    async def get_alchemy_data(self, query: str) -> Dict[str, Any]:
+        """
+        Get data from Alchemy subgraphs.
+        
+        Args:
+            query: GraphQL query string
+            
+        Returns:
+            Subgraph data
+        """
+        try:
+            endpoint = "subgraphs/name/uniswap/uniswap-v3"
+            headers = {"Content-Type": "application/json"}
+            data = await self.make_request(
+                "alchemy", 
+                endpoint,
+                method="POST",
+                headers=headers,
+                params={"query": query}
+            )
+            self.logger.debug("Retrieved data from Alchemy subgraphs")
+            return data
+        
+        except Exception as e:
+            self.logger.error(f"Failed to get Alchemy data: {str(e)}")
+            return {}
+    
+    async def get_moralis_defi_data(self, protocol: str) -> Dict[str, Any]:
+        """
+        Get DeFi protocol data from Moralis.
+        
+        Args:
+            protocol: Protocol name
+            
+        Returns:
+            Protocol data from Moralis
+        """
+        try:
+            endpoint = f"defi/{protocol}"
+            data = await self.make_request("moralis", endpoint)
+            self.logger.debug(f"Retrieved {protocol} data from Moralis")
+            return data
+        
+        except Exception as e:
+            self.logger.error(f"Failed to get Moralis data: {str(e)}")
+            return {}
+    
     async def health_check(self) -> Dict[str, Any]:
         """
         Perform health check on all API endpoints.
@@ -263,21 +340,28 @@ class APIClient:
         """
         results = {}
         
-        for api_name in self.endpoints.keys():
-            try:
-                # Simple test request to each API
-                if api_name == "defi_llama":
-                    await self.make_request(api_name, "protocols", params={"limit": 1})
-                elif api_name == "coingecko":
-                    await self.make_request(api_name, "ping")
-                else:
-                    # For other APIs, just check if the endpoint is reachable
-                    await self.make_request(api_name, "")
-                
-                results[api_name] = "healthy"
-                
-            except Exception as e:
-                self.logger.error(f"Health check failed for {api_name}: {str(e)}")
-                results[api_name] = f"unhealthy: {str(e)}"
+        # Test CoinGecko
+        try:
+            await self.get_token_price("bitcoin")
+            results["coingecko"] = "healthy"
+        except Exception as e:
+            results["coingecko"] = f"unhealthy: {str(e)}"
+        
+        # Test DeFiLlama
+        try:
+            protocols = await self.get_defi_protocols()
+            if len(protocols) > 0:
+                results["defi_llama"] = "healthy"
+            else:
+                results["defi_llama"] = "unhealthy: no data returned"
+        except Exception as e:
+            results["defi_llama"] = f"unhealthy: {str(e)}"
+        
+        # Test Etherscan
+        try:
+            await self.get_ethereum_price()
+            results["etherscan"] = "healthy"
+        except Exception as e:
+            results["etherscan"] = f"unhealthy: {str(e)}"
         
         return results

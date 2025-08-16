@@ -78,12 +78,14 @@ class TestAPIClient:
             await api_client.make_request("invalid_api", "test")
     
     @pytest.mark.asyncio
-    async def test_health_check(self, api_client, mock_session):
+    async def test_health_check(self, api_client):
         """Test health check functionality."""
-        api_client.session = mock_session
-        
-        with patch.object(api_client, 'make_request', return_value={"status": "ok"}):
-            results = await api_client.health_check()
-            
-        assert isinstance(results, dict)
-        assert len(results) > 0
+        with patch.object(api_client, 'get_token_price', return_value={"bitcoin": {"usd": 50000}}):
+            with patch.object(api_client, 'get_defi_protocols', return_value=[{"name": "test"}]):
+                with patch.object(api_client, 'get_ethereum_price', return_value={"result": {"ethusd": "3000"}}):
+                    results = await api_client.health_check()
+                    
+                    assert isinstance(results, dict)
+                    assert "coingecko" in results
+                    assert "defi_llama" in results
+                    assert "etherscan" in results
