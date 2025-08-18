@@ -43,11 +43,13 @@ def validate_ethereum_address(address: str) -> bool:
         int(address, 16)
         
         # Use Web3 for checksum validation
-        if Web3.isAddress(address):
+        # Use Web3 for checksum validation
+        if Web3.is_address(address):
             logger.debug(f"Valid Ethereum address: {address}")
             return True
         else:
-            raise ValidationError("Invalid Ethereum address checksum")
+             raise ValidationError("Invalid Ethereum address checksum")
+
             
     except ValueError as e:
         raise ValidationError(f"Invalid hex format in address: {str(e)}")

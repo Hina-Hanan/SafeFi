@@ -24,7 +24,8 @@ class TestValidators:
         """Test valid Ethereum address validation."""
         valid_address = "0x742d35Cc6634C0532925a3b8d93f97a2D71D2c8e"
         
-        with patch('src.utils.validators.Web3.isAddress', return_value=True):
+        with patch('web3.main.Web3.is_address', return_value=True):
+
             result = validate_ethereum_address(valid_address)
             assert result is True
     

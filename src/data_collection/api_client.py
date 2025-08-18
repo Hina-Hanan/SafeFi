@@ -65,30 +65,25 @@ class APIClient:
             self.logger.info("API client session closed")
     
     async def _check_rate_limit(self, api_name: str) -> None:
-        """
-        Check and enforce rate limiting.
-        
-        Args:
-            api_name: Name of the API to check
-        """
+        """Check and enforce rate limiting."""
+        if api_name not in self.rate_limiter:
+            raise ValueError(f"Unknown API: {api_name}")
+
         current_time = time.time()
         rate_info = self.rate_limiter[api_name]
-        
-        # Remove requests older than 1 minute
-        rate_info["requests"] = [
-            req_time for req_time in rate_info["requests"]
-            if current_time - req_time < 60
-        ]
-        
-        # Check if we've exceeded the rate limit
-        if len(rate_info["requests"]) >= rate_info["limit"]:
-            sleep_time = 60 - (current_time - rate_info["requests"][0])
-            if sleep_time > 0:
-                self.logger.warning(f"Rate limit reached for {api_name}, sleeping for {sleep_time:.2f}s")
-                await asyncio.sleep(sleep_time)
-        
-        # Add current request time
-        rate_info["requests"].append(current_time)
+    
+        # Initialize keys if missing to avoid KeyError
+        if "last_request" not in rate_info:
+            rate_info["last_request"] = 0
+        if "min_interval" not in rate_info:
+            rate_info["min_interval"] = 1
+
+        if current_time - rate_info["last_request"] < rate_info["min_interval"]:
+            sleep_time = rate_info["min_interval"] - (current_time - rate_info["last_request"])
+            await asyncio.sleep(sleep_time)
+
+        rate_info["last_request"] = current_time
+
     
     async def make_request(
         self,
