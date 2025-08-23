@@ -10,9 +10,8 @@ from typing import Optional, Dict, Any
 from pathlib import Path
 from functools import lru_cache
 
-from pydantic_settings import BaseSettings
-from pydantic import validator, Field
-
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator, Field
 from loguru import logger
 
 
@@ -23,6 +22,13 @@ class Settings(BaseSettings):
     This class manages all configuration settings for the SafeFi application,
     including API keys, database connections, and logging configuration.
     """
+    
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore"
+    )
     
     # Application Settings
     app_name: str = Field(default="SafeFi DeFi Risk Assessment Agent", description="Application name")
@@ -43,7 +49,7 @@ class Settings(BaseSettings):
         default="postgresql+asyncpg://safefi_user:password@localhost:5432/safefi_db",
         description="PostgreSQL database connection URL"
     )
-    db_host: str = Field(default="localhost", description="Database host")
+    db_host: str = Field(default="127.0.0.1", description="Database host")  # Changed to IP
     db_port: int = Field(default=5432, description="Database port")
     db_name: str = Field(default="safefi_db", description="Database name")
     db_user: str = Field(default="safefi_user", description="Database user")
@@ -63,13 +69,8 @@ class Settings(BaseSettings):
     data_collection_interval: int = Field(default=300, description="Data collection interval in seconds")
     max_concurrent_requests: int = Field(default=10, description="Maximum concurrent API requests")
     
-    class Config:
-        """Pydantic configuration."""
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
-        
-    @validator("environment")
+    @field_validator("environment")
+    @classmethod
     def validate_environment(cls, v: str) -> str:
         """
         Validate environment setting.
@@ -88,7 +89,8 @@ class Settings(BaseSettings):
             raise ValueError(f"Environment must be one of: {valid_environments}")
         return v.lower()
     
-    @validator("log_level")
+    @field_validator("log_level")
+    @classmethod
     def validate_log_level(cls, v: str) -> str:
         """
         Validate log level setting.
@@ -107,7 +109,8 @@ class Settings(BaseSettings):
             raise ValueError(f"Log level must be one of: {valid_levels}")
         return v.upper()
     
-    @validator("database_url")
+    @field_validator("database_url")
+    @classmethod
     def validate_database_url(cls, v: str) -> str:
         """
         Validate PostgreSQL database URL format.

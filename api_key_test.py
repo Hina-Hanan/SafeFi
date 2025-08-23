@@ -91,7 +91,7 @@ async def test_defillama_api() -> Dict[str, Any]:
 
 async def test_all_apis():
     """Test all API keys"""
-    print("🔍 TESTING API KEYS...")
+    print(" TESTING API KEYS...")
     print("=" * 50)
     
     # Load your settings (modify path as needed)
@@ -100,14 +100,14 @@ async def test_all_apis():
         settings = get_settings()
         
         # Test CoinGecko
-        print("\n📊 Testing CoinGecko API:")
+        print("\n Testing CoinGecko API:")
         coingecko_result = await test_coingecko_api(settings.coingecko_api_key)
         print(f"Status: {coingecko_result['status']}")
         if "data" in coingecko_result:
             print(f"BTC Price: ${coingecko_result['data'].get('bitcoin', {}).get('usd', 'N/A')}")
         
         # Test Etherscan
-        print("\n⛽ Testing Etherscan API:")
+        print("\n Testing Etherscan API:")
         if settings.etherscan_api_key:
             etherscan_result = await test_etherscan_api(settings.etherscan_api_key)
             print(f"Status: {etherscan_result['status']}")

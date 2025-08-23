@@ -37,3 +37,13 @@ pre-commit>=3.3.0
 # Additional API clients
 httpx>=0.25.0
 tenacity>=8.2.0
+
+# For sentiment analysis
+textblob==0.17.1
+vaderSentiment==3.3.2
+
+# For backup operations (system dependencies)
+# Ensure PostgreSQL client tools are installed:
+# Windows: Download from PostgreSQL official site
+# Linux: sudo apt-get install postgresql-clientpip install textblob vaderSentiment
+# macOS: brew install postgresql
